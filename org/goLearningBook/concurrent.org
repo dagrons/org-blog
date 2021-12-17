@@ -1,0 +1,116 @@
+#+TITLE: Never start a goroutine without knowing how it will stop
+
+这句话是在cite:cheney16:_never 看到的，觉得非常有道理，所以这里总结一下如何退出goroutine的方法
+
+本文大部分内容来源cite:geektutu ，总的来说，内容和cite:ajmani14:pipeline_and_concellation 比较类似，但之所以独立成文的原因是重点讲解一下如何保证goroutine退出，而不会block forever
+
+goroutine 被设计为不可以从外部无条件地结束掉，只能通过 channel 来与它通信。
+也就是说，每一个 goroutine 都需要承担自己退出的责任。(A goroutine cannot be programmatically killed. It can only commit a cooperative suicide.)
+
+* Timeout
+
+  #+BEGIN_SRC go
+	func doBadthing() chan bool { // 这个函数是被设计作为goroutine使用的，所以要考虑结束条件
+		done := make(chan bool)	
+		go func() {
+			defer close(done)
+			time.Sleep(time.Second)
+			done <- true
+		}()
+		return done
+	}
+
+	func main(f func(chan bool)) error { 
+		done := doBadthing()
+		select {
+		case <-done:
+			fmt.Println("done")
+			return nil
+		case <-time.After(time.Millisecond):
+			return fmt.Errorf("timeout")
+		}
+	}
+
+	main(doBadthing)
+  #+END_SRC
+
+  在上面的代码中，
+  #+BEGIN_EXPORT HTML
+  <span style="background-color:yellow">
+  我们把main函数chained到了done和time.After返回的两个channel上，timeout的结束条件要么是doBadthing执行完毕，要么是定时器触发超时
+  而doBadthing的结束条件则是下游timeout接受对应数据
+  </span>
+  #+END_EXPORT
+  
+  time.After(time.Millisecond)启动了一个异步的定时器，返回一个channel，当到达时间限制时，就channel就会被close  
+
+  但上面的代码存在一个陷阱，我们doBadthing的结束条件是成功送出true到channel，但如果main超时退出后，done就失去了receiver，因此doBadthing就会block forever
+
+  形象点说，正常的逻辑下，我们下游会接受到上游的数据直到上游channel被关闭，而上游会一直等待直到下游接受数据，但在下游具有超时机制时，下游接受到超时就跑路了，
+  而上游还在苦苦等待
+
+  因此，上面的代码可以这样改，即上游不再傻傻等待，如果没人接受数据，也直接跑路, 
+  #+BEGIN_EXPORT HTML
+  <span style="background-color:yellow">
+  注意上游跑路和下游跑路的区别：上游跑路会顺带关闭channel，下游直接就返回了，
+  下游跑路，上游就会block forever，除非建立一个单独的channel，用来通知上游关闭channel
+  </span>
+  #+END_EXPORT
+
+  #+BEGIN_SRC go
+	func doGoodthing() chan bool {
+		done := make(chan bool)
+		go func() {
+			defer close(done)
+			time.Sleep(time.Second)
+			select {
+			case done <- true:
+			default:
+				close(done)
+			}
+		}()
+		return done
+	}
+  #+END_SRC
+
+
+* Non-Timeout
+
+  对于Non-Timeout的情况，我们就需要建立一个独立channel来通知上游退出了
+
+  #+BEGIN_SRC go
+	func doGoodthing(done1 <-chan struct{}, i int) chan int {
+		done := make(chan int)
+
+		go func() {
+			defer close(done)
+			select {
+			case done<-i:
+			case <-done1:
+				return
+			}
+		}()
+
+		return done
+	}
+
+	func main() {
+		done1 := make(chan struct{})
+		for i:=0; i < 1000; i++ {
+			go func() {
+				defer close(done1)
+				done := doGoodthing(done1)
+				t := <-done
+				if t == 100 {
+					fmt.Println("Found %v", t)
+					return 
+				}
+			}()
+		}	
+	}
+  #+END_SRC
+  
+  在上面的例子中，我们开启1000个goroutine，但并不等待他们执行完毕，只要接受到t=100，就关闭所有goroutine
+
+bibliography:go.bib
+

@@ -1,0 +1,251 @@
+搜索就是暴力美学, 主要注意一下路径问题和现场问题即可，即dfs递深时现场的恢复，以及path的处理
+
+图论：学无止尽啊
+
+* DFS，n-皇后问题
+
+  DFS存在一个优势，就是有个回溯过程，根据这个我们可以干很多事情，我们可以收集子节点信息
+
+  我们定义
+  row[]: 第i行是否已经被占用
+  col[]: 第i列是否已经被占用
+  leftop[]: 第i行，第j列对应的leftop值为i-j+n-1
+  righttop[]: 第i行，第j列对应的righttop值为i+j
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		n := 4
+		path := make([]int, n)
+		col := make([]bool, n)
+		row := make([]bool, n)
+		lefttop := make([]bool, 2*n-1) 
+		righttop := make([]bool, 2*n-1)	
+		dfs(0, n, path, col, row, lefttop, righttop)
+	}
+
+	func dfs(i, n int, path []int, col, row, lefttop, righttop []bool) {
+		if i == n {
+			fmt.Println(path)
+			return 
+		}
+		for j := 0; j < n; j++ { // try j 
+			if row[i] || col[j] || lefttop[i-j+n-1] || righttop[i+j] { // fail
+				continue
+			}
+			row[i], col[j], lefttop[i-j+n-1], righttop[i+j] = true, true, true, true
+			path[i] = j
+			dfs(i+1, n, path, col, row, lefttop, righttop)
+			row[i], col[j], lefttop[i-j+n-1], righttop[i+j] = false, false, false, false
+			path[i] = 0
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : [1 3 0 2]
+  : [2 0 3 1]
+
+* DFS，树的深度优先遍历   
+  :PROPERTIES:
+  :CUSTOM_ID: graph-implementation
+  :END:
+
+  分析，如果我们能求得每个节点的子树权重即可，而这个可以通过dfs求得
+
+  dfs(node) = dfs(node.left) + dfs(node.right)
+
+  那么我们在每个节点的切分子树最大权重为: max(dfs(node.left), dfs(node.right), total - dfs(node.left) - dfs(node.right) - 1)
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	const N = 100010
+
+	type GraphNode struct {
+		val int
+		next *GraphNode
+	}
+
+	type Graph struct {
+		h map[int]*GraphNode
+	}
+
+	func New() Graph {
+		return Graph{make(map[int]*GraphNode)}
+	}
+
+	func (G *Graph) Add(u, v int) {
+		newNode := &GraphNode{}
+		newNode.val = v
+		newNode.next = G.h[u]
+		G.h[u] = newNode
+	}
+
+	func main() {
+		g := New()
+		g.Add(1, 2)
+		g.Add(1, 7)
+		g.Add(1, 4)  
+		g.Add(2, 8)
+		g.Add(2, 5)
+		g.Add(4, 3)
+		g.Add(3, 9)
+		g.Add(4, 6)
+
+		total := 9
+
+		ans := 0x7fffffff
+		dfs(1, g, &ans, total)
+		fmt.Println(ans)
+	}
+
+	func dfs(t int, g Graph, ans *int, total int) int {
+		cnt := 0
+		res := 0
+		for i:=g.h[t]; i!=nil; i=i.next {
+			j := i.val
+			m := dfs(j, g, ans, total)
+			res = max(res, m)
+			cnt += m
+		}
+		cnt += 1
+		res = max(res, total-cnt)
+		,*ans = min(*ans, res)
+		return cnt
+	}
+
+	func max(a, b int) int {
+		if a > b {
+			return a
+		} else {
+			return b
+		}	
+	}
+
+	func min(a, b int) int {
+		if a > b {
+			return b
+		} else {
+			return a
+		}	
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 4
+
+* BFS, 八数码     
+
+  bfs是一层一层递深地，意味着它具有最短路径的性质，但同时在递深的过程中，队列的长度会指数增长
+
+  #+BEGIN_EXPORT html
+  <span style="background-color: yellow">
+  bfs的队列中同时最多存在两层节点，上一层和下一层，只有遍历完上一层节点，才会再处理下一层
+
+  对于树，队列中不会有重复元素，但对于图，队列中就会出现重复元素，而且会出现回环，这种时候就一定需要判重, 否则这些存在回路的状态就产生endless loop，
+
+  上面bfs都是不考虑路径权重的情况，在考虑路径权重时，我们往往会“重复入队”，因为，从上一层达到下一层的相同节点可能不止一条边，后出队的节点可能发现更
+  优的路径，此时我们并不需要真正重复入队，只需要修改该节点的距离即可，这样就可以保证下一层节点在出队时，都是最优的情况
+
+  上述我们都只考虑了正权边，由于正权边情况下，回路一定不是最优的，所以我们可以不用考虑回路的问题（判重），但在存在负权边的情况，我们就需要考虑回路了，
+  因为该路径可能是更优的，尤其是在限制最多经过节点个数的情况下，这时候可能就不能使用bfs了，这种情况我们后面再讨论
+  </span>
+  #+END_EXPORT
+
+  i, j对应的坐标为3*i+j
+   
+  up: 3i+j, 3(i-1)+j
+  down: 3i+j, 3(i+1)+j
+  left: 3i+j, 3i+j-1
+  right: 3i+j, 3i+j+1
+
+  dx[] = {0, 1, 0, -1}, dy[]={1, 0, -1, 0}
+
+  st[]: 该状态是否已经入过队列了, 该问题空间存在回路，如果允许重复入队，则会产生endless loop
+  d[]: 记录该状态离起点的距离
+
+  #+BEGIN_SRC go 
+	package main
+
+	import "fmt"
+
+	type Queue [][]byte
+
+	func (Q *Queue) Push(val []byte) {
+		,*Q = append(*Q, val)
+	}
+
+	func (Q *Queue) Pop() {
+		,*Q = (*Q)[1:]
+	}
+
+	func (Q Queue) Top() []byte {
+		return Q[0]	
+	}
+
+	func (Q Queue) Len() int {
+		return len(Q)
+	}
+
+	func main() {
+		a := []byte{'2', '3', '4', '1', '5', 'x','7', '6', '8'}
+		bfs(a)
+	}
+
+	func bfs(a []byte) int {
+		q := Queue{}
+		d := map[string]int{}
+		q.Push(append(a[:0:0], a...)) // perfectly clone a slice
+		d[string(a)] = 0
+		for q.Len() > 0 {
+			a := q.Top()
+			q.Pop()
+
+			if string(a) == "12345678x" { // found
+				fmt.Println(d[string(a)])
+				return d[string(a)]
+			}
+
+			dx := []int{1, 0, -1, 0}
+			dy := []int{0, 1, 0, -1}		
+			i := 0 // find x
+			for i < len(a) {
+				if a[i] == 'x' {
+					break
+				}
+				i++
+			}
+
+			x, y := i/3, i%3 
+			for j := 0; j < 4; j++ { // try
+				nx := x+dx[j] // next step
+				ny := y+dy[j]
+				if nx < 3 && nx >= 0 && ny < 3 && ny >= 0 {
+					na := append(a[:0:0], a...)				
+					na[3*x+y], na[3*nx+ny] = na[3*nx+ny], na[3*x+y]
+					_, ok := d[string(na)]
+					if !ok {
+						q.Push(na)
+						d[string(na)] = d[string(a)] + 1
+					}				
+				}
+			}	
+		}
+		return 0x7fffffff
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 19
+   
+   
+   
+
+
+  

@@ -1,0 +1,262 @@
+本章来源: cite:ajmani14:context
+
+~"在设计异步代码时，要抱着怀疑的态度看待所有代码"~
+
+
+考虑下面的场景
+
+#+BEGIN_SRC dot :file context.png
+  digraph G {
+	  request1[shape=plaintext]
+	  request2[shape=plaintext]
+	  request3[shape=plaintext]
+	  requestn[shape=plaintext]
+	  server[shape=box]
+	  request1 -> server->handler1->{goroutine1_1, goroutine1_2}
+	  request2 -> server->handler2->{goroutine2_1, goroutine2_2}
+	  request3 -> server->handler3->{goroutine3_1, goroutine3_2, goroutine3_3}
+	  requestn -> server->handler4->{goroutine4_1, goroutine4_2, goroutine4_3, goroutine4_4}
+  }
+#+END_SRC
+
+#+RESULTS:
+[[file:context.png]]
+
+
+当一个request被取消或者超时, 我们需要回收它派生出的所有下游goroutine占用的资源, 在上面的模型中，我们很容易发现，handler和它关联的goroutine是fan-out的关系，如果我们需要回收所有下游任务，
+则需要将一个channel层层传递传递给所有的下游任务，所有下游任务通过这个channel获取到关闭资源的信号， 除此之外，我们还需要为所有的下游任务提供一个公共的键值队上下文，用来存储相应的会话信息，
+比如用户IP，cookie等，这时候我们需要用到context包
+
+
+Context定义如下：
+
+#+BEGIN_SRC go
+  type Context interface {
+	  Deadline() (deadline time.Time, ok bool)
+	  Done() <- chan struct{}
+	  Err() error
+	  Value(key interface{}) interface{}	
+  }
+#+END_SRC
+
+#+BEGIN_EXPORT html
+<span style="background-color:yellow">通常当我们想要理解一个interface{}时候，是需要站在使用者的角度去看待的</span>,
+#+END_EXPORT
+对于Context而言，我们需要怎么使用它很关键，
+通常，我们用Deadline()判断当前Context是否超时，监听Done()返回的channel判断是否提前结束，用Err()返回Done返回的channel为什么被关闭，
+用Value()读取共享的键值队
+
+#+BEGIN_EXPORT html
+<span style="background-color: yello">
+很多时候，package除了提供接口，还需要提供一些最基本的实现，方便我们后续扩展
+</span>
+#+END_EXPORT
+context包中提供的最基础的Context实现是emptyCtx，如下，
+
+#+BEGIN_SRC go
+  type emptyCtx int
+
+  func (*emptyCtx) Deadline() (deadline time.Time, ok bool) {
+	  return
+  }
+
+  func (*emptyCtx) Done() <-chan struct{} {
+	  return nil
+  }
+
+  func (*emptyCtx) Err() error {
+	  return nil
+  }
+
+  func (*emptyCtx) Value(key interface{}) interface{} {
+	  return nil
+  }
+
+  func (e *emptyCtx) String() string {
+	  switch e {
+	  case background:
+		  return "context.Background"
+	  case todo:
+		  return "context.TODO"
+	  }
+	  return "unknown empty Context"
+  }
+#+END_SRC
+
+可以看到emptyCtx基本上什么都没有实现，但通过它定义了两个单例Context，
+#+BEGIN_EXPORT HTML
+<span style="background-color:yellow">
+顺便注意一下go中的单例是怎么实现的
+</span>
+#+END_EXPORT
+
+#+BEGIN_SRC go
+  var (
+	  background = new(emptyCtx)
+	  todo       = new(emptyCtx)
+  )
+
+  func Background() Context {
+	  return background
+  }
+
+  func TODO() Context {
+	  return todo
+  }
+
+#+END_SRC
+
+即Background()和TODO()会返回对应的单例background和todo，其中background通常用来做顶级上下文，基本上其他上下文都是通过WithCancel()和WithDeadLine()以及WithValue()在这个
+基础上扩展的，从而将所有Context组织成树状
+
+下面我们来看CancelContext的实现，相比emptyCtx，cancelCtx则更加完备了，它不但组合了Context，还使用了done来作为Done()返回的channel，使用children来维护所有的子context信息，
+还用了mu来保证所有操作的原子性
+
+注意，当cancel的时候，会顺带cancel所有子节点
+
+#+BEGIN_SRC go
+  var cancelCtxKey int // cancelCtxKey is the key that a cancelCtx returns itself for. 默认为0，这个key用来返回自己本身
+
+  type canceler interface { // a canceller is who can cancel itself, and when called Done(), return a channel to indicate wheather it has been cancelled or not
+	  cancel(removeFromParent bool, err error)
+	  Done() <-chan struct{}
+  }
+
+  type cancelCtx struct {
+	  Context // interface value也是可以作为struct成员的
+
+	  mu       sync.Mutex            // protects following fields
+	  done     atomic.Value          // atomic.Value支持Load和Store两种原子操作，可以存取任意值
+	  children map[canceler]struct{} // set to nil by the first cancel call, 这个也很有意思，map[canceler]struct{}，其实本质上就是st[canceler]用来判断一个键到底在不在，而不关心值
+	  err      error                 // set to non-nil by the first cancel call
+  }
+
+  func (c *cancelCtx) Value(key interface{}) interface{} { // cancelCtx不关心Value的实现，交给它的Context成员处理即可
+	  if key == &cancelCtxKey { // 返回自身
+		  return c
+	  }
+	  return c.Context.Value(key)
+  }
+
+  func (c *cancelCtx) Done() <-chan struct{} { // 这里是读写者问题，读不加锁，写加锁
+	  d := c.done.Load()
+	  if d != nil {
+		  return d.(chan struct{})
+	  }
+	  c.mu.Lock() // 这段代码比较有意思，如果第一次Load不是nil，那就直接返回这个channel，但如果是nil，从下条指令开始可能也不是nil了，所以还需要加锁判断一次，我们需要Store一个chan struct{}，即需要写入，这时候就需要加锁了，读不需要加锁，写需要加锁
+	  defer c.mu.Unlock()
+	  d = c.done.Load() // 我们无法保证我们进入写临界区时，是否有其他人刚出这个临界区，所以还需要再读一遍，这是一个经典的问题，就是当我们在写临界区内时，对应的写操作不应该依赖于临界区外的读结果，React中的Redux也是这样一个经典的问题
+	  if d == nil {
+		  d = make(chan struct{})
+		  c.done.Store(d)
+	  }
+	  return d.(chan struct{})
+  }
+
+  func (c *cancelCtx) Err() error {
+	  c.mu.Lock()
+	  err := c.err
+	  c.mu.Unlock()
+	  return err
+  }
+
+  func (c *cancelCtx) cancel(removeFromParent bool, err error) { // cancel接受两个参数一个是removeFromParent用来表明是否需要从父节点删除它，另一个err表明cancel的原因
+	  if err == nil { // cancel的error不能为空
+		  panic("context: internal error: missing cancel error")
+	  }
+	  c.mu.Lock()
+	  if c.err != nil {
+		  c.mu.Unlock()
+		  return // already canceled
+	  }
+	  c.err = err
+	  d, _ := c.done.Load().(chan struct{})
+	  if d == nil {
+		  c.done.Store(closedchan) // 这里的closedchan是一个预定义的变量
+	  } else {
+		  close(d)
+	  }
+	  for child := range c.children { // 这里只遍历key，即所有canceler
+		  // NOTE: acquiring the child's lock while holding parent's lock.
+		  child.cancel(false, err)
+	  }
+	  c.children = nil
+	  c.mu.Unlock()
+
+	  if removeFromParent {
+		  removeChild(c.Context, c)
+	  }
+  }
+
+
+  // newCancelCtx returns an initialized cancelCtx.
+  func newCancelCtx(parent Context) cancelCtx {
+	  return cancelCtx{Context: parent}
+  }
+#+END_SRC
+
+这里的Done()设计是一个经典的读写者问题，尤其要注意的是
+#+BEGIN_EXPORT HTML
+<span style="background-color:yellow">当我们在临界区内进行操作时，不应该信任临界区外读取的结果</span>
+#+END_EXPORT
+
+注意到cancelCtx用了一个map[canceller]struct{}来维护子节点信息，其实这个就和st[N]比较类似，都是用来判定一个键到底存不存在，而不关心它的值，不过map[caceller]struct{}更方便，因为struct{}类型本身并不占空间，
+#+BEGIN_EXPORT html
+<span style="background-color:yellow">
+在实践中，经常利用map和struct{}来实现HashSet
+</span>
+#+END_EXPORT
+
+注意上面用到了一个closedchan，它是预定义的一个变量
+
+#+BEGIN_SRC go
+  // closedchan is a reusable closed channel.
+  var closedchan = make(chan struct{})
+
+  func init() {
+	  close(closedchan)
+  }
+#+END_SRC
+
+init是包初始化时会执行的函数，它优于main函数之前执行，它没有输入参数和返回值，每个文件和包可以有多个init函数，但它们的执行顺序并不被保证，
+它可以：
+- 初始化不能被初始化表达式初始化的操作
+- 程序运行前的注册
+- 等等
+
+然后就是withCancel的实现，就没什么好说的了，propagateCancel是处理parent已经被cancel的情况
+
+#+BEGIN_SRC go
+  func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
+	  if parent == nil {
+		  panic("cannot create context from nil parent")
+	  }
+	  c := newCancelCtx(parent)
+	  propagateCancel(parent, &c)
+	  return &c, func() { c.cancel(true, Canceled) }
+  }
+#+END_SRC
+
+然后是parentCancelCtx，这个函数寻找一个Context的underlying *concelCtx（如果存在的话）
+
+#+BEGIN_SRC go
+  func parentCancelCtx(parent Context) (*cancelCtx, bool) {
+	  done := parent.Done()
+	  if done == closedchan || done == nil {
+		  return nil, false
+	  }
+	  p, ok := parent.Value(&cancelCtxKey).(*cancelCtx) // Value会迭代向上寻找, 直到找到innermost的*cancelCtx
+	  if !ok {
+		  return nil, false
+	  }
+	  pdone, _ := p.done.Load().(chan struct{})
+	  if pdone != done { // 说明当前Context并没有使用underlying cancelCtx的done channel
+		  return nil, false
+	  }
+	  return p, true
+  }
+#+END_SRC
+
+好了，context差不多就讲到这里了
+
+bibliography:go.bib

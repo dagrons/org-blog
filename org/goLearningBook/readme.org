@@ -1,0 +1,265 @@
+#+TITLE: 一些琐碎而不成文的知识点
+
+* Go的哲学
+
+  explicit, simple and consistent
+
+  组合优于继承
+
+  Go是一种类C的语言，不过支持GC，interface等操作
+
+  go是面向接口编程的语言，我们一般有如下操作
+
+  1. 定义结构
+  2. 定义接口
+  3. 定义方法
+  4. 为接口定义方法
+  5. 为结构定义方法
+
+	 
+  为了实现类型抽象，我们有如下操作
+
+  1. Embedding structure in structure
+  2. Embedding interface value in structure(这里是interface value)
+  3. Embedding interface in interface
+
+
+* 算法学习
+
+  loop invariant: 当我们遇到比较难以理解的循环时，通过loop invariant来理解我们每次循环的目的
+
+  structure invariant: 数据结构维护的是什么信息，具有什么性质
+	 
+  
+* 算法实现
+  
+  条件分支编写
+
+  - 正向思维，when...do...
+  - 逆向思维，求解约束，do...when..
+
+  方法实现一般有三
+
+  - best-practice [[file:../acwingLearningBook/ch2.org::#binary-tree][二叉树实现]]
+  - implement methods for parameters (pass input and requires as parameters) [[file:../acwingLearningBook/ch2.org::#kmp][KMP实现]]
+  - implement methods for global structures [[file:../acwingLearningBook/ch2.org::#union-set][并查集实现]]
+  - implement methods for local variables [[file:../acwingLearningBook/ch2.org::#string-hash][字符串哈希]]
+
+
+  下面列一些常见的结构实现
+
+  - [[file:../acwingLearningBook/ch2.org::#stack][栈的实现]]
+  - [[file:../acwingLearningBook/ch2.org::#queue][队列的实现]]
+  - [[file:../acwingLearningBook/ch2.org::#list][链表实现]]
+  - [[file:../acwingLearningBook/ch2.org::#binary-tree][Trie的实现]]
+  - [[file:../acwingLearningBook/ch3.org::#graph-implementation][图的实现]]
+
+
+  最后，数组大法好
+
+  
+* 算法调试
+
+  - 打桩， 在关键的条件分支上打桩, 从而打印出执行路径，是最好用的调试手段, 因为程序本身就可以看做图，我们在图的节点上打桩，理解程序的执行过程了
+	
+	如[[file:../acwingLearningBook/ch2.org::#pin][栈，最长括号匹配]], 该题中共有6中情况，我们将其编码为'a'~'f', 然后pin(x)打桩，就可以查看程序在每一步的决策过程了	
+
+	#+BEGIN_SRC go
+	  func pin(x interface{}) {
+		  fmt.Println(x)
+	  }
+	#+END_SRC
+
+	#+RESULTS:
+
+
+* 类型定义
+  
+  主要有三种定义
+
+  #+BEGIN_SRC go
+	type Int=int // 完全一致， type alias
+
+	type Queue []interface{} // 继承结构，不继承方法
+
+	type Queue { // composition
+		 q []interface{}
+	}
+
+  #+END_SRC
+
+
+* Slice迷思
+
+  slice也是按值传递，和其他元素并无不同， 理解了这一点， 就没有什么迷思了， 它的结构如下：
+
+  #+BEGIN_SRC go
+	type slice struct {
+		ptr *Elem
+		len int
+		cap int
+	}
+  #+END_SRC
+
+  所以需要进行append, slice等操作时，都需要对slice按指针传递
+
+  #+BEGIN_SRC go :exports both
+	package main
+
+	import "fmt"
+
+	func main() {
+		slice := []int{2, 4, 1, 5, 3}
+		newSlice := slice[3:4]
+		newSlice = append(newSlice, 6)
+		fmt.Println(newSlice)
+		fmt.Println(slice)
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : [5 6]
+  : [2 4 1 5 6]
+  
+  
+* Type Assertion, Type Switch and Type Conversion
+
+** Type Assertion
+   type assertion形式如下：
+
+   #+BEGIN_EXAMPLE
+   t, ok := <interface value>.(<type>)
+   #+END_EXAMPLE
+
+   即type assertion的参数一定是用于interface value的，并且type可以是struct type，也可以interface type; 如果type assertion成功，则返回值t就是对应的concret value或者interface value(取决于type assertion的type参数)
+
+   #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+	import "reflect"	
+
+	func main() {
+		var a interface{} = "hello"
+		t, ok := a.(string)
+		if ok {
+			fmt.Println(reflect.TypeOf(t))
+		}
+		x, ok := a.(interface{})		
+		if x == t {
+			fmt.Println(reflect.TypeOf(x))
+		}
+	}
+   #+END_SRC
+
+   #+RESULTS:
+   : string
+   : hello
+  
+  
+   为什么需要type assertion, 其一是可以判定interface value的具体类型或是否满足某个接口，且二它也golang的优化有关cite:cox09
+
+
+** Type Switch
+   
+   type switch 如下，它和type assertion类似，都只针对interface value，在面向接口编程时，可以根据interface value的具体类型或者接口从而进行不同操作，
+   最经典的就是fmt.Println(), 它接受的参数是interface{}, 然后在内部根据具体类型执行相应操作
+   
+   #+BEGIN_SRC go
+	 package main
+
+	 import "fmt"
+
+	 func main() {
+		 var s interface{} = "sdas"
+		 switch v := s.(type) {
+		 case interface{}:
+			 fmt.Println("interface{}")
+		 case string:
+			 fmt.Println(v)
+		 default:
+			 fmt.Println("default")
+		 }	
+	 }
+   #+END_SRC
+
+   #+RESULTS:
+   : interface{}
+
+
+** Type Conversion   
+
+   type conversion的参数只能是concret value, 而不能是interface value
+
+   #+BEGIN_SRC go
+	 package main
+
+	 import "fmt"
+
+	 type Aint int
+
+	 func (A Aint) SayHello() {
+		 fmt.Println("hello")
+	 }
+
+	 type Bint Aint
+
+	 func (B Bint) SayWorld() {
+		 fmt.Println("world")	
+	 }
+
+	 func main() {
+		 var b Bint = 2
+		 var c interface{} = b
+		 // d := c.(Aint) 
+		 // d.SayHello()
+		 e := Aint(c.(Bint))
+		 e.SayHello()
+	 }
+   #+END_SRC
+
+   #+RESULTS:
+   : hello
+
+   通过上面的例子，我们可以看出，Bint并不会继承Aint的任何方法，它们只有相同的concret data structure，并不共享任何方法，但由于具有相同的concret data strcuture，
+   所以他们之间可以通过type conversion进行转换
+
+
+
+
+
+
+* 一些常错的地方
+
+  1. go中的字符的默认literal是rune，而不是byte
+  2. string是基于[]byte，而不是[]rune的
+  
+
+* chan的一些行为
+
+  - a send and receive from nil channel blocks forever
+  - a send to closed channel panics
+  - a receive from a closed channel returns the zero value immediately
+
+
+* struct{}的一些行为
+
+  - struct{}不占空间
+  - 所有struct{}相等，和nil比较类似
+
+
+* struct{}可以用来干什么
+
+  - 实现HashSet
+  - 不发送数据的信道，只用来close，例如done
+  - 尽包含方法的结构体
+
+
+* 一些常见的设计原则
+
+  - Never start a goroutine without how it will stop
+
+
+
+
+  bibliography:go.bib

@@ -1,0 +1,9 @@
+- [[file+emacs:./ch1.org][基础算法]]
+   
+- [[file+emacs:./ch2.org][基础数据结构]]
+
+- [[file+emacs:./ch3.org][搜索与图论]]
+   
+- [[file+emacs:./ch4.org][动态规划]]
+
+- [[file+emacs:./ch5.org][贪心]]

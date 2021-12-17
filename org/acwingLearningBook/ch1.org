@@ -1,0 +1,596 @@
+位运算：我是个废物，但我能装逼
+排序：我无处不在
+二分搜索：我无处不在
+前缀和与差分：我也不知道我能干嘛，溜了
+双指针：为什么要单独给我起个名啊...
+离散化：我用的是真的少
+区间合并：我用的是真的少
+  
+* 位运算，a^b
+
+  所谓位运算, 考虑成数组就好了
+    
+  a^b = a^b[0]*2^0 * a^b[1]*2^1 + a^b[2]*2^2...
+
+  #+header: :stdin example
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a, b, p := 2, 2, 128
+		res := 1
+		fmt.Scanf("%v %v %v", &a, &b, &p)
+		for base,i, b:=a, 0, b;  i < 32; i,base, b=i+1, base*base % p, b>>1 {
+			if b & 1 == 1 {
+				res = res * base % p
+			}		
+		}
+		fmt.Println(res)
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 4
+
+* 位运算，a*b
+
+  基本和上面一样
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a, b, p := 2, 5, 6
+		res := 0
+		for base,i:=a,0; i<32;i, base, b=i+1, base*2 % p, b >>1 {
+			if b & 1 == 1{
+				res = (res + base) % p
+			}
+		}
+		fmt.Println(res)
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 4
+* 位运算，二进制中1的个数
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var n int
+		fmt.Scan(&n)
+		for i := 0; i < n; i++ {
+			var x int
+			fmt.Scan(&x)
+			cnt := 0
+			for x > 0 {
+				x -= lowbit(x)
+				cnt++
+			}
+			fmt.Print(cnt, " ")		
+		}
+	}
+
+	func lowbit(x int) int {
+		return x & -x
+	}
+  #+END_SRC
+* 状态压缩dp，最短Hamiton
+  
+  f[i][j]: 经过j中的节点到达i的hamiton, j有32bit, 可以表达32个节点
+  f[i][j] = max(f[k][j-(1<<k)] + dist[k][i]): 原集合等价于 所有经过j-(1<<k), 到达k的hamiton, 且该路径中间不能包含节点i, 然后再从k到达i的决策集合
+
+  遍历方向, 对于(i, j)而言, 其依赖的状态一定在左边
+
+  边界: f[0][0] = 0
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var n int
+		fmt.Scanf("%v", &n)
+		f := make([][]int, n)
+		dist := make([][]int, n)
+		for i:=0; i < n; i++ {
+			dist[i] = make([]int, n)
+			f[i] = make([]int, 1<<n)
+		}
+		for i:= 0; i < n; i++ {
+			for j:=0; j < 1 << n; j++ {
+				f[i][j] = 0x7fffffff
+			}
+		}
+		for i:= 0; i < n; i++ {
+			for j:=0; j < n; j++ {
+				fmt.Scanf("%v", &dist[i][j])				
+			}
+		}
+
+		for i:= 0; i < n; i++ {
+			f[i][0] = dist[0][i]
+		}
+		for i:= 0; i < n; i++ {
+			for j := 0; j < 1 << n; j++ {
+				for k := 0; k < n && j >= 1 << k; k ++ {
+					f[i][j] = min(f[i][j], f[k][j - (1<<k)] + dist[k][i])
+				}
+			}
+		}
+		fmt.Println(f[n-1][(1<<n)-1])
+	}
+
+	func min(a, b int) int {
+		if a > b {
+			return b
+		} else {
+			return a
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+
+* 快速排序
+
+   注意, 这里不能选x:=a[0], 因为除了第一轮, 后面的子区间, 就没有a[0]了
+
+  #+BEGIN_SRC go 
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := []int{2, 5, 9, 4, 1, 6, 8, 10}
+		qsort(a, 0, len(a)-1)
+		for _, t := range a {
+			fmt.Println(t)
+		}
+	}
+
+	func qsort(a []int, l, r int) {
+		if l >= r {
+			return
+		}
+		x := a[(l+r)>>1]		
+		i, j := l, r
+		for i < j {
+			for a[i] < x {
+				i++
+			}
+			for a[j] > x {
+				j--
+			}
+			if i < j {
+				a[i], a[j] = a[j], a[i]
+			}	
+		}
+		qsort(a, l, j)
+		qsort(a, j+1, r)
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+  : 2
+  : 4
+  : 5
+  : 6
+  : 8
+  : 9
+  : 10
+* 二分搜索
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := []int{1, 3, 5, 7, 8,10, 11}	
+		fmt.Println(bsearch(a, 0, len(a)-1, 5))	
+	}
+
+	func bsearch(a []int, l, r, target int) int {
+		if l >= r {
+			return l
+		}	
+		mid := (l + r) >> 1
+		if target <= a[mid] {
+			return bsearch(a, l, mid, target)
+		} else {
+			return bsearch(a, mid+1, r, target)
+		}	
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2
+* 二分搜索, 搜索左边最大
+  
+   #+BEGIN_SRC  go
+	 package main
+
+	 import "fmt"
+
+	 func main() {
+		 a := []int{1, 3, 5, 7, 8, 10, 11}
+		 fmt.Println(lb(a, 0, len(a)-1, 5))
+	 }
+
+	 func lb(a []int, l, r, target int) int {
+		 if l >= r {
+			 return l
+		 }
+		 mid := (l + r +1 ) >> 1
+		 if target >= a[mid] {
+			 return lb(a, mid, r, target)
+		 } else {
+			 return lb(a, l, mid-1, target)
+		 }	
+	 }
+   #+END_SRC
+
+   #+RESULTS:
+   : 2
+* 二分搜索, 搜索右边最小
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := []int{1, 3, 5, 7, 8, 10, 11}
+		fmt.Println(ub(a, 0, len(a)-1, 6))
+	}
+
+	func ub(a []int, l, r, target int) int {
+		if l >= r {
+			return l
+		}
+		mid := (l + r) >> 1
+		if target <= a[mid] {
+			return ub(a, l, mid, target)		
+		} else {
+			return ub(a, mid+1, r, target)
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 3
+* 二分搜索，数的三次方根
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var a float64 = 9.0
+		fmt.Printf("%.2f", sqrt(a))
+	}
+
+	func sqrt(a float64) float64 {
+		var l, r float64 = 0, 1e9
+		for r-l >= 1e-6 {
+			x := (l+r) / 2
+			if x*x*x < a {
+				l, r = x, r
+			} else {
+				l, r = l, x
+			}
+		}
+		return l
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2.08
+* 前缀和与差分, 前缀和
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var n, m int
+		fmt.Scanf("%v %v", &n, &m)
+		a := make([]int, n+1)
+		s := make([]int, m+1)
+		for i := 1; i <= n; i++ {
+			fmt.Scanf("%v", &a[i])
+		}
+		build(a, s)
+		for i:=0; i < m; i++ {
+			var l, r int
+			fmt.Scanf("%v %v", &l, &r)
+			fmt.Println(query(s, l, r))
+		}
+	}
+
+	func build(a, s []int) {
+		for i:= 1; i<len(a); i++ {
+			s[i] = s[i-1] + a[i]
+		}
+	}
+
+
+	func query(s []int, l, r int) int {
+		return s[r] - s[l-1]		
+	}
+  #+END_SRC
+
+  #+RESULTS:
+
+* 前缀和与差分，子矩阵的和
+
+  #+BEGIN_SRC go :tangle a.go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var n, m , q int
+		fmt.Scan(&n, &m, &q)
+
+		a := make([][]int, n+1)
+		for i:=0; i <= n; i++ {
+			a[i] = make([]int, m+1)
+		}
+		s := make([][]int, n+1)
+		for i:=0; i <= n; i++ {
+			s[i] = make([]int, m+1)
+		}
+
+		for i:= 1; i <= n; i++ {
+			for j:=1; j <= m; j++ {
+				fmt.Scan(&a[i][j])
+				s[i][j] = s[i][j-1] + s[i-1][j] - s[i-1][j-1] + a[i][j]
+			}		
+		}	
+
+		for i:=0; i < q; i++ {
+			var x1, y1, x2, y2 int
+			fmt.Scan(&x1, &y1, &x2, &y2)
+			fmt.Println(s[x2][y2] - s[x1-1][y2] - s[x2][y1-1] + s[x1-1][y1-1])		
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+* 双指针，最长不重复子串
+
+  双指针， 又叫快慢指针， 是一种算法技巧， 用来在遍历过程中维护一段满足某种性质的区间，通常形式如下：
+
+  #+BEGIN_EXAMPLE
+	for j < n; j++ {
+		// find i according to j
+		res = max(res, i-j+1) // best [i, j]
+	}
+  #+END_EXAMPLE
+
+  本题的基本思路就是为每个快指针， 找到左边最长的不重复位置，并用last[]用空间换时间进行优化
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		s := []byte("asdasdasdasfasfasf")
+		fmt.Println(solve(s))
+	}
+
+	func solve(s []byte) int {
+		res := 0	
+		i, j := 0, 0	
+		last := make([]int, 256) // 最大不会超过256	
+		for i:=0; i < len(last); i++ {
+			last[i] = -1
+		}	
+		for ; j < len(s); j++ {
+			c := s[j]
+			if last[c] >= i {
+				i = last[c]+1
+			} // 即为当前快指针找到了对应的慢指针
+			last[c] = j
+			res = max(res, j-i+1)
+		}
+		return res
+	}
+
+	func max(a, b int) int {
+		if a > b {
+			return a
+		} else {
+			return b
+		}	
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 4
+* 双指针，数组元素的目标和  
+
+  分析：两个数组都是升序，为了凑a[i] + b[j] = target, 可以考虑一个从小段出发， 一个从大段出发
+
+  双指针， 指向两个数组
+
+  严格来说，这道题和“双指针”关系不大，只是确实用了两个指针而已
+
+  #+BEGIN_SRC go 
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := []int{1, 3, 4, 5, 7, 10}
+		b := []int{2, 4, 6, 8, 10}
+		target := 14
+		fmt.Println(solve(a, b, target))	
+	}
+
+	func solve(a, b []int, target int) (int, int) {
+		i, j := 0, len(b)-1
+		for i < len(a) && j >= 0 {
+			if a[i] + b[j] == target {
+				return i, j
+			} else if a[i] + b[j] < target {
+				i++
+			} else {
+				j--
+			}
+		}
+		return 0, 0
+	}
+  #+END_SRC 
+
+  #+RESULTS:
+  : 2 4
+  
+* 双指针，判断子序列
+
+  模拟就行了
+
+  严格来说，和双指针关系不大，也只不过用了两个指针而言
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		var n, m int
+		fmt.Scan(&n, &m)
+		a := make([]int, n)
+		b := make([]int, m)
+		for i:=0; i < n; i++ {
+			fmt.Scan(&a[i])		
+		}
+		for i:=0; i < m; i++ {
+			fmt.Scan(&b[i])
+		}
+		if check(a, b) {
+			fmt.Println("Yes")
+		} else {
+			fmt.Println("No")
+		}
+	}
+
+	func check(a, b []int) bool {
+		i, j := 0, 0
+		for j < len(a) {
+			for i < len(b) && a[j] != b[i] {
+				i++
+			}
+			if i < len(b) {
+				i++
+			} else {
+				return false
+			}
+			j++			
+		}
+		return true
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : Yes
+* 离散化，区间和
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+	import "sort"
+
+	type PII struct { 
+		first, second int
+	}
+
+	func main() {
+		var n, m int 
+		fmt.Scan(&n, &m)	
+		ops := make([]PII, 0)
+		alls := make([]int, 0)
+		queries := make([]PII, 0)	
+
+		for i:=0; i < n; i++ { // load ops
+			var pos, val int
+			fmt.Scan(&ops, &val)	
+			ops = append(ops, PII{pos, val})
+		}
+
+		for i:=0; i < m; i++ { // load alls, queries
+			var l, r int
+			fmt.Scan(&l, &r)
+			queries = append(queries, PII{l, r})
+			alls = append(alls, l)
+			alls = append(alls, r)		
+		}
+
+		// 去重
+		sort.Slice(alls, func(i, j int) bool { 
+			return alls[i] < alls[j]
+		})
+		alls  = alls[:unique(alls)]
+		a := make([]int, len(alls))
+		s := make([]int, len(alls))
+
+		// 处理插入
+		for _, t := range ops {
+			a[find(ops, t.first)] += t.second
+		}
+
+		// 前缀和
+		for i:=1; i < len(a); i++ {
+			s[i] = s[i-1] + a[i]
+		}
+
+		// 处理询问
+		for _, t := range queries {
+			fmt.Println(s[find(ops, t.second)] - s[find(ops, t.first)-1])
+		}
+	}
+
+	func unique(a []int) int { 
+		j := 0	
+		for i:=0; i < len(a); i++ {
+			if i == 0 || a[i] != a[i-1] {
+				a[j] = a[i]
+				j++
+			}
+		}
+		return j
+	}
+
+	func find(a []PII, target int) int { // find upper bound for target 
+		l, r := 0, len(a) - 1
+		for l < r {
+			mid := (l+r) >>1
+			if target <= a[mid].second {
+				r = mid
+			} else {
+				l = mid+1
+			}		
+		}
+		return l
+	}
+
+  #+END_SRC
+
+  #+RESULTS:
+  
