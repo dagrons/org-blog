@@ -1050,11 +1050,7 @@ KMP：我是个字符串的预处理结构
 	}
 
 	func main() {
-		fd, err := os.Open("/home/dell/acwingLearningBook/in.txt")
-		if err != nil {
-			panic(err)
-		}
-		defer fd.Close()
+		fd, _ := os.Open("/home/dell/blog/org/acwingLearningBook/in.txt")
 		os.Stdin = fd
 
 		var n, m int
@@ -1075,6 +1071,81 @@ KMP：我是个字符串的预处理结构
   : 1
   : 2
   : 3
+
+
+#+BEGIN_SRC go
+  package main
+
+  import "fmt"
+  import "os"
+
+  type IntHeap []int
+
+  func NewIntHeap() *IntHeap {
+	  return &IntHeap{0}
+  }
+
+  func (H IntHeap) down(x int) {
+	  n := len(H) - 1
+	  t := x
+	  if x << 1 <= n && H[t] < H[x<<1] {
+		  t = x << 1
+	  }
+	  if x << 1|1 <= n && H[t] < H[x<<1|1] {
+		  t = x << 1|1
+	  }
+	  if t != x {
+		  H[t], H[x] = H[x], H[t]
+		  H.down(t)
+	  }
+  }
+
+  func (H IntHeap) up(x int) {
+	  t := x >> 1
+	  if t > 0 && H[x] > H[t] {
+		  H[t], H[x] = H[x], H[t]
+		  H.up(t)
+	  }	
+  }
+
+  func (H *IntHeap) Push(val int) {
+	  ,*H = append(*H, val)
+	  H.up(len(*H)-1)
+  }
+
+  func (H *IntHeap) Pop() {
+	  (*H)[1], (*H)[len(*H)-1] = (*H)[len(*H)-1], (*H)[1]
+	  ,*H = (*H)[0:len(*H)-1]
+	  H.down(1)
+  }
+
+  func (H IntHeap) Top() int {
+	  return H[1]
+  }
+
+  func main() {
+	  fd, _ := os.Open("/home/dell/blog/org/acwingLearningBook/in.txt")
+	  os.Stdin = fd
+
+	  var n, m int
+	  fmt.Scan(&n, &m)
+	  q := NewIntHeap()
+	  for i:=0; i < n; i++ {
+		  var x int
+		  fmt.Scan(&x)
+		  q.Push(x)
+	  }
+	  for i:=0; i < m; i++ {
+		  fmt.Println(q.Top())
+		  q.Pop()
+	  }
+  }
+#+END_SRC
+
+#+RESULTS:
+: 5
+: 4
+: 3
 
 * 字符串哈希， 字符串哈希
   :PROPERTIES:

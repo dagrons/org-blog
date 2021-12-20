@@ -259,7 +259,17 @@
 
   - Never start a goroutine without how it will stop
 
+	
+* Pass by Pointer or Pass by Value
 
+  在设计方法时, 对于receiver type, 到底是Pass by Pointer还是Pass by Value?
+
+  之前的想法是, 如果需要改变这个结构本身, 就Pass by Pointer, 否则Pass by Value, 但发现实际中会出现很多问题
+
+  最好的做法是, 除非需要按值传递, 否则Pass by Pointer, 
+
+  If the receiver is a map, func or chan, don't use a pointer to them. if the receiver is a slice and the method doesn't reslice
+  or reallocate the slice, don't use a pointer to it.
 
 
   bibliography:go.bib

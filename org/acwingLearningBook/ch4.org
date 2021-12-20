@@ -27,15 +27,7 @@
 	import "os"
 
 	func main() {
-		fd, err := os.Open("/home/dell/acwingLearningBook/in.txt")
-		if err != nil {
-			panic(err)
-		}
-		defer fd.Close()	
-		oldStdin := os.Stdin
-		defer func() {
-			os.Stdin = oldStdin
-		}()
+		fd, err := os.Open("/home/dell/blog/org/acwingLearningBook/in.txt")
 		os.Stdin = fd	
 
 		var n, m int
@@ -87,11 +79,7 @@
 	import "os"
 
 	func main() {
-		fd, err := os.Open("/home/dell/acwingLearningBook/in.txt")
-		if err != nil {
-			panic(err)
-		}
-		defer fd.Close()
+		fd, err := os.Open("/home/dell/blog/org/acwingLearningBook/in.txt")
 		os.Stdin = fd
 
 		var n int
