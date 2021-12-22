@@ -1,0 +1,377 @@
+* 机器人的运动范围
+
+  先写一个flood-fill的解法
+
+  注意几点: 
+  1. 用st[PII{x, y}]代替st[][]
+  2. 如果在递深过程中, 需要observer变量, 就将全局变量放在递深变量的上面
+  3. 边界条件可以放在门前守卫, 也可以门后守卫, 即在递深前判断和在入口判断
+	 
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type PII struct {
+		first int
+		second int 
+	}
+
+	func main() {
+		fmt.Println(solve(7, 4, 5))
+	}
+
+
+	func solve(k, m, n int) int {
+		// 先写一个flood-fill的解法
+		st := make(map[PII]struct{})
+		ans = 0
+		dfs(0, 0, k, m, n, st)
+		return ans
+	}
+
+	var ans int
+	func dfs(x, y, k, m, n int, st map[PII]struct{}) {
+		// 在每个状态, 将当前状态标记为已走过, 然后递深
+		// 边界条件: 如果递深状态非法, 则不再递深
+		dx := []int{1, 0, -1, 0}
+		dy := []int{0, 1, 0, -1}
+		st[PII{x, y}] = struct{}{}
+		ans ++
+		for i:=0; i < 4; i++ {
+			nx := x + dx[i]
+			ny := y + dy[i]
+			if nx < 0 || ny < 0 || nx >= m || ny >= n {
+				continue
+			}
+			if _, ok := st[PII{nx, ny}]; ok {
+				continue
+			}
+			if nx + ny > k {
+				continue
+			}
+			dfs(nx, ny, k, m, n, st)		
+		}
+	}
+  #+END_SRC 
+
+  #+RESULTS:
+  : 20
+
+  #+attr_html: :width 720px
+  [[./棋盘问题.png]]
+
+
+  再写一个数学推导的解法
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		fmt.Println(solve(7, 4, 5))
+	}
+
+	func solve(k, m, n int) int {
+		ans := 0
+		x := 1
+		for j:=0; j <= k; j++ {
+			ans += x
+			if j < min(m, n) - 1 {
+				x++
+			}
+			if j >= max(m, n)- 1 {
+				x--
+			}
+		}
+		return ans
+	}
+
+
+	func max(a, b int) int {
+		if a > b {
+			return a 
+		} else {
+			return b
+		}
+	}
+
+	func min(a, b int) int {
+		if a < b {
+			return a
+		} else {
+			return b
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 20
+  
+* 剪绳子
+
+  没什么好说的, 不是剪成3, 就是2
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		n := 11
+		fmt.Println(solve(n))
+	}
+
+	func solve(n int) int {
+		res := 1
+		quo := n / 3
+		rnd := n % 3
+		if rnd == 1 {
+			quo --
+			for quo > 0{
+				res *= 3
+				quo --
+			}
+			return res * 2 * 2
+		} else if rnd == 2 {
+			for quo > 0 {
+				res *= 3
+				quo --
+			}
+			return res * 2
+		} else {
+			for quo > 0 {
+				res *= 3
+				quo -- 
+			}
+			return res
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 54
+
+* 二进制中1的个数
+
+  lowbit操作: x&-x
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		n := 6
+		fmt.Println(solve(n))
+	}
+
+	func solve(n int) int {
+		cnt := 0
+		for n > 0 {
+			n -= n&-n
+			cnt ++
+		}
+		return cnt
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2
+* 数值的整数次方
+
+  从数学的角度看:
+
+  a^b可以理解为, a^(1010010) = a10 * a10000 * a1000000
+
+  通过快速幂, 我们先预处理出p_i = a^{2^i}, 其中p_i = p_{i-1}*p_{i-1}
+  
+  则a^b = \prod p_i * b_i
+
+  直观上, 即[p_0, p_1, p_2, p_3, ...] * [b_0, b_1, b_2, b_3, ...], 前者是数组意义上的向量, 后者是位意义上的向量
+
+  另一个问题是a*b, 也可以这样理解
+  p[i] = a, p[i] = p[i-1] * 2
+ 
+  a*b = [p_0, p_1, ... ] * [b_0, b_1, ...]
+
+  总之, 数组是向量, 数字也是向量
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a, b := 10, 5
+		fmt.Println(solve(a, b))
+	}
+
+	func solve(a, b int) int {
+		// 快速幂就完事了
+		// p[i]表示a^i, p[0] = a
+		// a^b = p[]*b[], b[]表示b的位数组, 即a^b可以理解为p[]与a[]的点积
+		// [a20, a21, a22, a23...] * [b0, b1, b2, ....]
+		// p[0] = a^2^0 = a
+		res := 1
+		p := make([]int, 100)
+		p[0] = a
+		for i:=0; i < 31; i++ {
+			if (b >> i) & 1 == 1{
+				res*=p[i]
+			}
+			p[i+1] = p[i] * p[i]
+		}
+		return res
+	}
+
+
+  #+END_SRC
+
+  #+RESULTS:
+  : 100000
+* 在O(1)时间删除链表节点
+
+  看答案, 看答案
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type ListNode struct {
+		val int
+		next *ListNode
+	}
+
+	type List struct {
+		head *ListNode
+	}
+
+	func (L *List)Add(val int) {
+		if L.head == nil {
+			L.head = &ListNode{val, nil}
+		} else {
+			newNode := &ListNode{val, L.head}
+			L.head = newNode
+		}
+	}
+
+	func NewList() *List {
+		return &List{nil}
+	}
+
+	func main() {
+		l := NewList()
+		l.Add(2)
+		l.Add(3)
+		l.Add(1)
+		l.Add(5)
+		l.Add(6)
+		l.Add(7)
+		solve(l.head.next.next)
+		for i := l.head; i != nil; i = i.next {
+			fmt.Println(i.val)
+		}
+	}
+
+	func solve(node *ListNode) {
+		t := node.next
+		node.val = node.next.val
+		node.next = node.next.next
+		t.next = nil
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 7
+  : 6
+  : 1
+  : 3
+  : 2
+* 删除链表中重复的节点
+
+  #+BEGIN_EXPORT HTML
+  <span style="background-color:yellow">
+  在会删除链表头节点的情况下, 可以使用dummy node技巧
+  </span>
+  #+END_EXPORT 
+
+  不变量啊, 不变量
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type ListNode struct {
+		val int
+		next *ListNode
+	}
+
+	type List struct {
+		head *ListNode
+	}
+
+	func (L *List)Add(val int) {
+		if L.head == nil {
+			L.head = &ListNode{val, nil}
+		} else {
+			newNode := &ListNode{val, L.head}
+			L.head = newNode
+		}
+	}
+
+	func NewList() *List {
+		return &List{nil}
+	}
+
+	func main() {
+		L := NewList()
+		L.Add(9)
+		L.Add(9)
+		L.Add(8)
+		L.Add(8)
+		L.Add(7)
+		L.Add(7)
+		L.Add(6)
+		L.Add(5)
+		L.Add(4)
+		L.Add(4)
+		L.Add(1)
+		solve(L.head)
+		for i:=L.head; i!=nil; i=i.next {
+			fmt.Println(i.val)
+		}
+	}
+
+	func solve(head *ListNode) {
+		// 当我们有可能删除头节点时, 一般使用dummy node技巧
+		dummy := &ListNode{-1, head}
+		// 每轮迭代开始, 我们让q指向第一个存在重复的节点, 然后p向前移动直到q.next.val == q.val
+		// 每轮迭代, p指向第一个重复节点的前一个节点, q指向最后一个节点, 然后p.next = q.next
+		// 每轮迭代后, q=p.next
+		p := dummy
+		q := head
+		for q != nil {		
+			for q.next != nil && q.val != q.next.val {
+				q = q.next
+			}
+			for p.next != q {
+				p = p.next
+			}
+			for q.next != nil && q.val == q.next.val {
+				q = q.next
+			}
+			p.next = q.next
+			q = p.next
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+  : 5
+  : 6

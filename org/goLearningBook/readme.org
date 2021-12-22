@@ -1,5 +1,7 @@
 #+TITLE: 一些琐碎而不成文的知识点
 
+Go的语法可以看作C++的子集, 但Go加上了GC和Interface, 从而从系统编程的角度更加方便
+
 * Go的哲学
 
   explicit, simple and consistent
@@ -32,6 +34,16 @@
 	 
   
 * 算法实现
+
+  LOop Invariant: 
+  ~In computer science, a loop invariant is a property of a program loop that is true before (and after) each iteration. It is a logical assertion, sometimes checked within the code by an assertion call. Knowing its invariant(s) is essential in understanding the effect of a loop~
+  
+  
+  #+BEGIN_EXPORT HTML
+  <span style="background-color: yellow">
+  我希望自己的程序不是通过多次调试更改才得到的, 而是通过思维论证导出的
+  </span>
+  #+END_EXPORT
   
   条件分支编写
 
@@ -254,6 +266,35 @@
   - 不发送数据的信道，只用来close，例如done
   - 尽包含方法的结构体
 
+	
+  实现HashSet
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+	st := make(map[int]struct{})
+		st[1] = struct{}{}
+		st[2] = struct{}{}
+		if _, ok := st[3]; ok {
+			fmt.Println("3 is in st")
+		} else {
+			fmt.Println("3 is not in st")
+		}
+		if _, ok := st[2]; ok {
+			fmt.Println("2 is in st")		
+		} else {
+			fmt.Println("2 is not in st")
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 3 is not in st
+  : 2 is in st
+
 
 * 一些常见的设计原则
 
@@ -271,5 +312,26 @@
   If the receiver is a map, func or chan, don't use a pointer to them. if the receiver is a slice and the method doesn't reslice
   or reallocate the slice, don't use a pointer to it.
 
+  不光是传参, 在创建对象时同样也是如此
+
+
+
+
+
+* Untyped nil
+
+  在go中, nil代表uninitialize value, 根据不同的类型, nil也是有不同的类型, 因此golang中nil也是有类型的, 我们不能使用untyped nil
+  
+  因此定义nil变量时, 要通过下面的方式
+
+  #+BEGIN_SRC go
+  var v *TreeNode
+  #+END_SRC
+
+  而不能这样
+
+  #+BEGIN_SRC go
+  v := nil
+  #+END_SRC
 
   bibliography:go.bib

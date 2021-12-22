@@ -13,3 +13,9 @@
   - [[file:acwingLearningBook/ch3.org][搜索与图论]]
   - [[file:acwingLearningBook/ch4.org][动态规划]]
   - [[file:acwingLearningBook/ch5.org][贪心]]
+ 
+
+- 剑指Offer
+  - [[./sword2Offer/week1.org][Week1]]
+  - [[./sword2Offer/week2.org][Week2]] 
+

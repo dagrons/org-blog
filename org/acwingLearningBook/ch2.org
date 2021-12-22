@@ -1252,3 +1252,184 @@ KMP：我是个字符串的预处理结构
   : 2
   : 0
      
+* 线段树, 区间最大值
+
+  维护的区间为[0, M-1]共M个元素
+
+  对于区间最大值问题, 边权为负
+  对于区间最小值问题, 边权为正
+  
+  #+BEGIN_SRC go :tangle a.go
+	package main
+
+	import "fmt"
+
+	const N = 1 << 21
+
+	var (
+		seg []int
+		M int 
+	)  // segment tree
+
+	func query(s, t int) int {
+		lans, rans := 0, 0
+		for s,t=s+M, t+M; s^t^1 != 0; s, t = s>>1, t >>1 { // 每轮迭代完成, lans为相对s节点的子树最大值, rans为相对t节点子树最大值
+			lans += seg[s]
+			rans += seg[t]
+			if s & 1 == 0 { // left child
+				lans = max(lans, seg[s^1])			
+			}
+			if t & 1 == 1 { // right child
+				rans = max(rans, seg[t^1])
+			}		
+		}
+		lans += seg[s]
+		rans += seg[t]
+		ans := max(lans, rans)
+
+		for s != 0 {
+			ans += seg[s]
+			s >>= 1
+		}
+		return ans
+	}
+
+	func add(s, t, x int) { // [s, t] += x
+		seg[s+M] += x
+		seg[t+M] += x
+		for s, t = s+M, t+M; s^t^1 != 0; s, t = s>>1, t>>1 { // for each iteration, s>>1和t>>1已经被fix了
+			if s & 1 == 0 { // left child
+				seg[s^1] += x
+			}
+			if t & 1 == 1 { // right child 
+				seg[t^1] += x			
+			}
+			fix(s>>1)
+			fix(t>>1)
+		} // 当s和t为兄弟时退出, 此时s>>1即它们的父亲被fix了
+		for s >> 1 != 0 { 
+			fix (s >> 1)
+			s >>= 1
+		}
+	}
+
+	func fix(s int) {
+		A := max(seg[s<<1], seg[s<<1|1])
+		seg[s<<1] -= A
+		seg[s<<1|1] -= A
+		seg[s] += A
+	}
+
+	func main() {
+		M = 32 
+		seg = make([]int , 2*M+2)
+		add(1, 3, 5)
+		add(2, 4, 5)
+		add(11, 14, 7)
+		add(13, 17, 2)
+		add(1, 20, 3)
+		fmt.Println(query(6, 12))
+	}
+
+	func max(a, b int) int {
+		if a > b {
+			return a
+		} else {
+			return b
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 10
+
+* 线段树, 区间最小值
+
+  在区间最大值的基础上, 把所有max改成min即可
+
+  #+BEGIN_SRC go :tangle a.go
+	package main
+
+	import "fmt"
+
+	const N = 1 << 21
+
+	var (
+		seg []int
+		M int 
+	)  // segment tree
+
+	func query(s, t int) int {
+		lans, rans := 0, 0
+		for s,t=s+M, t+M; s^t^1 != 0; s, t = s>>1, t >>1 { // 每轮迭代完成, lans为相对s节点的子树最大值, rans为相对t节点子树最大值
+			lans += seg[s]
+			rans += seg[t]
+			if s & 1 == 0 { // left child
+				lans = min(lans, seg[s^1])			
+			}
+			if t & 1 == 1 { // right child
+				rans = min(rans, seg[t^1])
+			}		
+		}
+		lans += seg[s]
+		rans += seg[t]
+		ans := min(lans, rans)
+
+		for s != 0 {
+			ans += seg[s]
+			s >>= 1
+		}
+		return ans
+	}
+
+	func add(s, t, x int) { // [s, t] += x
+		seg[s+M] += x
+		seg[t+M] += x
+		for s, t = s+M, t+M; s^t^1 != 0; s, t = s>>1, t>>1 { // for each iteration, s>>1和t>>1已经被fix了
+			if s & 1 == 0 { // left child
+				seg[s^1] += x
+			}
+			if t & 1 == 1 { // right child 
+				seg[t^1] += x			
+			}
+			fix(s>>1)
+			fix(t>>1)
+		} // 当s和t为兄弟时退出, 此时s>>1即它们的父亲被fix了
+		for s >> 1 != 0 { 
+			fix (s >> 1)
+			s >>= 1
+		}
+	}
+
+	func fix(s int) {
+		A := min(seg[s<<1], seg[s<<1|1])
+		seg[s<<1] -= A
+		seg[s<<1|1] -= A
+		seg[s] += A
+	}
+
+	func main() {
+		M = 32
+		seg = make([]int ,N)
+		add(1, 3, 5)
+		add(2, 4, 5)
+		add(11, 14, 7)
+		add(13, 17, 2)
+		add(1, 20, 3)
+		add(17, 19, -1)
+		fmt.Println(query(2, 19))
+	}
+
+	func min(a, b int) int {
+		if a > b {
+			return b
+		} else {
+			return a
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2
+
+

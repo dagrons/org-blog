@@ -1,0 +1,562 @@
+* 找出数组中重复的数字
+
+  没什么好说的, 看的答案, 确实正常人想不出
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		nums := []int{2, 3, 5, 4, 3, 2, 6, 7}
+		fmt.Println(solve(nums))
+	}
+
+	func solve(nums []int) int {
+		for _, x := range nums {
+			if x < 0 || x > len(nums) {
+				return -1
+			}
+		}
+		for i:=0; i < len(nums); i++ {
+			for nums[i] != nums[nums[i]] { // 结束条件 nums[i] == nums[nums[i]], 即目的位置已经有这个元素了
+				nums[i], nums[nums[i]] = nums[nums[i]], nums[i]
+			}
+			if nums[i] != i {
+				return nums[i]
+			}
+		}
+		return -1
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2
+
+* 不修改数组找出重复的数字
+
+  n+1个元素在n个抽屉, 至少会有一个抽屉有两个元素
+
+  我们将区间[1, n]划分为[1, n/2], [n/2+1, n]两个子区间, 
+  由于有n+1个元素, 则两个子区间必有一个元素个数 > 区间长度
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		nums := []int{2, 3, 5, 4, 3, 2, 6, 7}
+		fmt.Println(solve(nums))
+	}
+
+	func solve(nums []int) int {
+		l, r := 1, len(nums)-1 // 注意是[1, n]之间
+		for l < r {
+			mid := (l+r) >> 1
+			s := 0 // [l, mid]有多少个元素
+			for _, x := range nums {
+				if x >=l && x <= mid {
+					s ++
+				}
+			}
+			if s > mid - l + 1 {
+				r = mid
+			} else {
+				l = mid+1
+			}		
+		}
+		return l
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 3
+
+* 二维数组中的查找
+
+  左右递增, 上下递增
+
+  从右上角开始
+
+  在任意位置, 如果该数偏大, 则在左上方, 如果该数偏小, 则在右下方
+
+  看答案, 看答案, md
+
+  #+BEGIN_SRC go 
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := [][]int{
+			{1, 2, 8, 9},
+			{2, 3, 9, 12},
+			{4, 7, 10, 13},
+			{6, 8, 11, 15}}
+		target := 7
+		fmt.Println(solve(a, target))
+		target = 5
+		fmt.Println(solve(a, target))
+	}
+
+	func solve(a [][]int, target int) bool {
+		x, y := 0, len(a[0])-1
+		for x >= 0 && y >= 0 && x < len(a) && y < len(a[0]) && a[x][y] != target {
+			if a[x][y] < target {
+				x++
+			} else {
+				y--
+			}
+		}
+		if x >= 0 && y >= 0 && x < len(a) && y < len(a[0]) {
+			return true
+		} else {
+			return false
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : true
+  : false
+* 替换空格
+  
+  没什么好说, 双指针完事
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		s := "We are Happy."
+		numSpace := 0
+		for _, c := range s {
+			if c == ' ' {
+				numSpace ++
+			}
+		}
+		bs := make([]rune, len(s)+numSpace*2)
+		j := 0
+		for _, c := range s {
+			if c == ' ' {
+				bs[j] = '%'
+				bs[j+1] = '2'
+				bs[j+2] = '0'
+				j += 3
+			} else {
+				bs[j] = c
+				j++
+			}
+		}
+		fmt.Println(string(bs))
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : We%20are%20Happy.
+  
+* 从尾到头打印链表
+
+  #+BEGIN_EXPORT HTML
+  <span style="background-color:yellow">
+  对于递归而言, 我们在递深前进行操作就是循环, 在递深后进行操作就是回溯
+  </span>
+  #+END_EXPORT 
+  
+  递归解法
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type ListNode struct {
+		val int
+		next *ListNode
+	}
+
+	type List struct {
+		root *ListNode
+	}
+
+	func (L* List) Add(val int) {
+		newNode := &ListNode{val, L.root}
+		L.root = newNode
+	}
+
+
+	func main() {
+		L := &List{nil}
+		L.Add(5)
+		L.Add(3)
+		L.Add(2)
+		solve(L)
+	}
+
+	func solve(L *List) {
+		bt(L.root)
+	}
+
+	func bt(N *ListNode) {
+		if N.next != nil {
+			bt(N.next)
+		}
+		fmt.Println(N.val)
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 2
+  : 3
+  : 5
+  : 5
+  : 3
+  : 2
+  
+  非递归解法(就是自己做个栈)
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type ListNode struct {
+		val int
+		next *ListNode
+	}
+
+	type List struct {
+		root *ListNode
+	}
+
+	func (L *List) Add(val int) {
+		newNode := &ListNode{val, L.root}
+		L.root = newNode
+	}
+
+	func main() {
+		L := &List{nil}
+		L.Add(5)
+		L.Add(3)
+		L.Add(2)
+		solve(L)
+	}
+
+	func solve(L *List) {
+		stk := []int{}
+		for i:=L.root; i!=nil; i=i.next {
+			stk=append(stk, i.val)
+		}
+		for len(stk) > 0 {
+			fmt.Println(stk[len(stk)-1])
+			stk = stk[0:len(stk)-1]
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 5
+  : 3
+  : 2
+
+* 重建二叉树
+
+  果然思路清晰比什么都重要, 直接one-pass了
+
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type TreeNode struct {
+		val int
+		left *TreeNode
+		right *TreeNode
+	}
+
+	type Tree struct {
+		root *TreeNode
+	}
+
+	func main() {
+		preorder := []int{3, 9, 20, 15, 7}
+		inorder := []int{9, 3, 15, 20, 7}
+		tr := div(preorder, inorder)
+		preOrder(tr)
+		inOrder(tr)
+	}
+
+	var j int = 0 // j 在div递深过程中递增
+	func div(preorder, inorder []int) *TreeNode {
+		// 递深过程:每次根据preorder第一个元素作为父节点的值, 将inorder拆分为两个子树, 对每个子树递深
+		// 回溯过程: 返回自己(即根节点)
+		// 边界条件: 数组为空, 递深时判断左右子树, 如果为空, 不再递深
+		newNode := &TreeNode{preorder[j], nil, nil}
+		i := 0
+		for i < len(inorder) {
+			if inorder[i] == preorder[j] {
+				break
+			}
+			i++
+		}
+		j++
+		left_inorder := inorder[:i]
+		if len(left_inorder) != 0 {
+			newNode.left = div(preorder, left_inorder)
+		}	
+		right_inorder := inorder[i+1:]
+		if len(right_inorder) != 0 {
+			newNode.right = div(preorder, right_inorder)
+		}
+		return newNode
+	}
+
+	func preOrder(T *TreeNode) {
+		fmt.Println(T.val)
+		if T.left != nil {
+			preOrder(T.left)
+		}
+		if T.right != nil {
+			preOrder(T.right)
+		}
+	}
+
+	func inOrder(T *TreeNode) {
+		if T.left!=nil {
+			inOrder(T.left)
+		}
+		fmt.Println(T.val)
+		if T.right != nil {
+			inOrder(T.right)
+		}
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  3
+  9
+  20
+  15
+  7
+  9
+  3
+  15
+  20
+  7
+  #+end_example
+
+* 二叉树的下一个节点
+  
+  给定二叉树任意一个节点, 给出二叉树中序遍历的下一个节点
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	type TreeNode struct {
+		val int
+		left *TreeNode
+		right *TreeNode
+	}
+
+	type Tree struct {
+		root *TreeNode
+	}
+
+	func (T *Tree) Add(val int) {
+		add(&T.root, val)
+	}
+
+	func add(p **TreeNode, val int) {
+		if *p == nil {
+			,*p = &TreeNode{val, nil, nil}
+		} else {
+			if val < (*p).val {
+				add(&(*p).left, val)
+			} else if val > (*p).val {
+				add(&(*p).right, val)
+			} else {
+				return 
+			}
+		}
+	}
+
+	func main() {
+		tr := &Tree{nil}
+		tr.Add(2)
+		tr.Add(1)
+		tr.Add(3)
+		tr.Add(-2)
+		tr.Add(5)
+		tr.Add(6)
+		tr.Add(9)
+		tr.Add(8)
+		tr.Add(7)
+		tr.Add(-5)
+		tr.Add(-1)
+		tr.Add(0)
+		fmt.Println(solve(tr.root.left.left.right.right, tr.root))
+	}
+
+	func solve(p *TreeNode, root *TreeNode) *TreeNode {
+		// 如果p有右子树, 则返回右子树最左边节点
+		// 如果p没有右子树且p本身是左儿子, 返回父节点
+		// 如果p没有右子树且p本身是右儿子, 返回向上的第一个为左儿子的祖先的父节点, 不存在则返回nil
+
+		if p.right != nil {
+			q := p.right
+			for q.left != nil {
+				q = q.left
+			}
+			return q
+		}
+		// 从根节点到p, 记录最后一个向右拐的节点
+		var v *TreeNode
+		q := root
+		for q != p {
+			if p.val < q.val  {
+				v = q
+				q = q.left
+			}
+			if p.val > q.val {
+				q = q.right
+			}
+		}
+		return v
+	}
+
+  #+END_SRC
+
+  #+RESULTS:
+  : &{1 0xc00000c078 <nil>}
+* 用两个栈实现队列
+  
+  思路比较简单, 维护S和SS, 入栈入到S, 出栈时,先将SS元素入到S, 再将S元素入到SS, 然后从SS出栈就行
+
+* 斐波那且数列  
+
+  f[i] = f[i-1] + f[i-2]
+  f[0] = 0
+  f[1] = 1
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		n := 5
+		f := make([]int, n+1)
+		f[0] = 0
+		f[1] = 1
+		for i:=2; i <= n; i++ {
+			f[i] = f[i-1] + f[i-2]
+		}
+		fmt.Println(f[n])
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : 5
+* 旋转数组的最小数字
+
+  看答案, 看答案, md
+
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		nums := []int{2, 2, 3, -1, 0, 1, 2, 2}
+		fmt.Println(solve(nums))
+	}
+
+	func solve(nums []int) int {
+		// 设最小元素为x, 则x右边元素都大于等于x, 且x左边元素最小值大于等于x右边元素最大值(包括x)
+		// 如果我们随机选一个mid, 如果mid > nums[0], 则x在mid右边, 如果mid < nums[0], 则x在mid左边,
+		// 如果mid == nums[0], 难以判断, 所以我们先从右到左, 去掉所有等于nums[0]的元素, 如果去掉后, 最右边元素大于nums[0]则说明, x=nums[0]为最小元素
+
+		l, r := 0, len(nums)-1
+		for nums[r] == nums[0] {
+			r--
+		}
+		if nums[r] > nums[0] {
+			return nums[0]
+		}
+		for l < r {
+			mid := (l+r)>>1
+			if nums[mid] >= nums[0] {
+				l = mid+1
+			} else {
+				r = mid
+			}
+		}
+		return nums[l]
+	}
+  #+END_SRC
+
+  #+RESULTS:
+  : -1
+
+* 矩阵中的路径
+  
+  矩阵中的路径是否包含某个字符串
+  
+  #+BEGIN_SRC go
+	package main
+
+	import "fmt"
+
+	func main() {
+		a := [][]byte{
+			{'A', 'B', 'C', 'E'},
+			{'S', 'F', 'C', 'S'},
+			{'A', 'D', 'E', 'E'}}
+		s := []byte("BCCE")
+		fmt.Println(solve(a, s))
+		s = []byte("BCCA")
+		fmt.Println(solve(a, s))
+	}
+
+	func solve(a [][]byte, s []byte) bool {
+		// 没啥思路, 那就dfs暴力, 在每个位置, 进行dfs暴力, 长度限制为len(s)
+		for i := 0; i < len(a); i++ {
+			for j := 0; j < len(a[0]); j++ {
+				if dfs(0, i, j, a, s) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	func dfs(t, x, y int, a [][]byte, s []byte) bool {
+		// (x, y) 为当前状态, t为当前路径长度, 在每个状态, 判断s[t] == a[x][y], 如果是, 则进行递深
+		dx := []int{1, 0, -1, 0}
+		dy := []int{0, 1, 0, -1}
+		if t >= len(s) { // 如果超出路径长度, 则表示已经找到了
+			return true
+		}
+		if s[t] == a[x][y] { 
+			for i:=0; i < 4; i++ {			
+				nx, ny := x + dx[i], y + dy[i]
+				if nx < 0 || ny < 0 || nx >= len(a) || ny >= len(a[0]) {
+					continue
+				}
+				if dfs(t+1, nx, ny, a, s) { // 回溯时, 判断是否找到, 找到了返回, 没找到继续
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+  #+END_SRC
+
+  #+RESULTS:
+  : true
+  : false
