@@ -13,9 +13,14 @@
   - [[file:acwingLearningBook/ch3.org][搜索与图论]]
   - [[file:acwingLearningBook/ch4.org][动态规划]]
   - [[file:acwingLearningBook/ch5.org][贪心]]
- 
-
+	
 - 剑指Offer
   - [[./sword2Offer/week1.org][Week1]]
   - [[./sword2Offer/week2.org][Week2]] 
+  - [[./sword2Offer/week3.org][Week3]]
 
+- 各种面试
+  - [[./offer/bytedance.org][字节跳动]]
+
+- 其他
+  - [[./misc/regex.org][正则表达式]]

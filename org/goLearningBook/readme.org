@@ -30,6 +30,8 @@ Go的语法可以看作C++的子集, 但Go加上了GC和Interface, 从而从系�
 
   loop invariant: 当我们遇到比较难以理解的循环时，通过loop invariant来理解我们每次循环的目的
 
+  从哪开始, 每轮做啥, 下一轮从哪开始
+
   structure invariant: 数据结构维护的是什么信息，具有什么性质
 	 
   
@@ -335,3 +337,30 @@ Go的语法可以看作C++的子集, 但Go加上了GC和Interface, 从而从系�
   #+END_SRC
 
   bibliography:go.bib
+
+
+* iota, Golang中的枚举
+
+  在写状态机的时候, 我们需要定义很多状态, 有时候我们并不care这些状态的具体数值, 可以用iota来简化代码
+
+  在golang中, 可以用这种方法代替枚举
+
+  #+BEGIN_SRC go
+	const (
+		STATE_INITIAL_STATE = iota
+		STATE_INT_SIGN
+		STATE_INTEGER
+		STATE_POINT
+		STATE_POINT_WITHOUT_INT
+		STATE_FRACTION
+		STATE_EXP
+		STATE_EXP_STATE
+		STATE_EXP_NUMBER
+		STATE_END
+	)
+  #+END_SRC
+
+  上述例子中, 第一个状态的数值为0, 后面的依次递增
+
+
+
